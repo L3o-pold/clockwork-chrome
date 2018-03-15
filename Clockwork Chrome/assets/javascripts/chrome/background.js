@@ -26,7 +26,26 @@ api.runtime.onMessage.addListener((message, sender, callback) => {
 				return callback({ error: 'Server returned an empty metadata.' })
 			}
 
-			callback({ data })
+			callback({ chunked: true })
+
+			let length = xhr.responseText.length
+			let index = 0
+			let step = 1024 * 1024 * 32
+
+			while (index < length) {
+				api.runtime.sendMessage({
+					action: 'metadataChunk',
+					url: message.url,
+					data: xhr.responseText.substr(index, step)
+				})
+
+				index += step
+			}
+
+			api.runtime.sendMessage({
+				action: 'metadataFinished',
+				url: message.url
+			})
 		}
 
 		Object.keys(message.headers || {}).forEach(headerName => {

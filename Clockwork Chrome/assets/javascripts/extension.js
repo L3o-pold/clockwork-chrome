@@ -34,11 +34,30 @@ class Extension
 	}
 
 	setMetadataClient () {
+		let incoming = {}
+
+		this.api.runtime.onMessage.addListener(message => {
+			if (! message.url || ! incoming[message.url]) return;
+
+			if (message.action === 'metadataChunk') {
+				incoming[message.url].data += message.data
+			} else if (message.action === 'metadataFinished') {
+				incoming[message.url].accept(JSON.parse(incoming[message.url].data))
+				delete incoming[message.url]
+			}
+		})
+
 		this.requests.setClient((url, headers) => {
 			return new Promise((accept, reject) => {
 				this.api.runtime.sendMessage(
 					{ action: 'getJSON', url, headers }, (message) => {
-						message.error ? reject(message.error) : accept(message.data)
+						if (message.data) {
+							accept(data)
+						} else if (message.error) {
+							reject(message.error)
+						} else if (message.chunked) {
+							incoming[url] = { accept, data: '' }
+						}
 					}
 				)
 			})
